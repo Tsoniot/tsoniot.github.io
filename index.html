@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP IoT Store & Web Flasher Ecosystem</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                        },
+                        tech: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            accent: '#38bdf8',
+                            neon: '#22c55e'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        pre, code, .font-mono { font-family: 'Fira Code', monospace; }
+        
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #0d9488; }
+        
+        /* Pulse & Glow Effects */
+        .glow-cyan { box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
+        .glow-brand { box-shadow: 0 0 20px rgba(20, 184, 166, 0.25); }
+        .pulse-led { animation: ledPulse 1.5s infinite alternate; }
+        @keyframes ledPulse {
+            from { opacity: 0.3; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+
+    <!-- Header / Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('store')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-tech-accent flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid fa-microchip"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-brand-400 via-tech-accent to-emerald-400 bg-clip-text text-transparent">ESP-Lab</span>
+                    <span class="hidden sm:inline-block text-xs text-slate-400 border border-slate-700 rounded px-1.5 py-0.5 ml-2 font-mono">IoT ecosystem</span>
+                </div>
+            </div>
+
+            <!-- Main Nav Tabs -->
+            <nav class="hidden md:flex space-x-1 lg:space-x-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button id="nav-store" onclick="switchTab('store')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-brand-400 bg-slate-800/80 shadow">
+                    <i class="fa-solid fa-store mr-2"></i>Cửa Hàng ESP
+                </button>
+                <button id="nav-code" onclick="switchTab('code')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-code mr-2"></i>Kho Code VIP
+                </button>
+                <button id="nav-flasher" onclick="switchTab('flasher')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-slate-400 hover:text-slate-200 flex items-center">
+                    <i class="fa-solid fa-bolt mr-2 text-amber-400"></i>Web Flasher
+                    <span class="ml-2 w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                </button>
+            </nav>
+
+            <!-- Action Buttons: Cart, Guide & Mobile menu -->
+            <div class="flex items-center space-x-3">
+                <button onclick="openGuideModal()" class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition" title="Hướng dẫn cài Driver & Nạp">
+                    <i class="fa-solid fa-circle-question text-lg"></i>
+                </button>
+
+                <button onclick="toggleCartDrawer()" class="relative bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700 transition flex items-center justify-center">
+                    <i class="fa-solid fa-cart-shopping text-base"></i>
+                    <span id="cart-badge" class="absolute -top-1.5 -right-1.5 bg-brand-500 text-slate-950 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-lg hidden">0</span>
+                </button>
+
+                <!-- Mobile menu toggle button -->
+                <button onclick="toggleMobileMenu()" class="md:hidden text-slate-400 hover:text-white p-2">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Drawer -->
+        <div id="mobile-menu" class="hidden md:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 space-y-2">
+            <button onclick="switchTab('store'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-brand-400 bg-slate-800">
+                <i class="fa-solid fa-store w-6"></i> Cửa Hàng ESP
+            </button>
+            <button onclick="switchTab('code'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300">
+                <i class="fa-solid fa-code w-6"></i> Kho Code VIP
+            </button>
+            <button onclick="switchTab('flasher'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300">
+                <i class="fa-solid fa-bolt w-6 text-amber-400"></i> Web Flasher
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINERS -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- ================= TAB 1: STORE / CATALOG ================= -->
+        <section id="tab-store" class="space-y-8">
+            <!-- Hero Banner -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-brand-900/40 border border-slate-800 p-6 md:p-10">
+                <div class="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
+                    <i class="fa-solid fa-microchip text-[200px] text-brand-400"></i>
+                </div>
+                <div class="relative z-10 max-w-2xl space-y-4">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold">
+                        <i class="fa-solid fa-sparkles"></i> Mới Nhập Kho Trung Quốc - Giá Tận Gốc
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white leading-tight">
+                        Bo Mạch ESP32-S3 & Linh Kiện IoT Kèm <span class="bg-gradient-to-r from-brand-400 to-tech-accent bg-clip-text text-transparent">Đặc Quyền Nạp Web</span>
+                    </h1>
+                    <p class="text-slate-300 text-sm md:text-base leading-relaxed">
+                        Mua phần cứng kèm mã kích hoạt Kho Code VIP. Nạp firmware trực tiếp từ trình duyệt web trong 5 giây - Không lo lỗi môi trường Arduino/IDF.
+                    </p>
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button onclick="switchTab('flasher')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-slate-950 font-bold text-sm shadow-lg shadow-brand-500/20 transition">
+                            <i class="fa-solid fa-bolt mr-2"></i>Thử Nạp Code Web Ngay
+                        </button>
+                        <a href="#product-list" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold border border-slate-700 transition">
+                            Xem Danh Sách Hàng
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Filters & Search -->
+            <div id="product-list" class="flex flex-col sm:flex-row gap-4 items-center justify-between bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                <!-- Category Tabs -->
+                <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <button onclick="filterProducts('all')" class="cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-500 text-slate-950">
+                        Tất cả
+                    </button>
+                    <button onclick="filterProducts('esp')" class="cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">
+                        Bo Mạch ESP32 / ESP8266
+                    </button>
+                    <button onclick="filterProducts('sensor')" class="cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">
+                        Cảm Biến & Module
+                    </button>
+                    <button onclick="filterProducts('kit')" class="cat-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">
+                        Combo Kit Học Tập
+                    </button>
+                </div>
+                <!-- Search Input -->
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-sm"></i>
+                    <input type="text" id="store-search" onkeyup="searchProducts()" placeholder="Tìm mạch, cảm biến..." class="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-brand-500 transition">
+                </div>
+            </div>
+
+            <!-- Product Grid -->
+            <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Products rendered via JavaScript -->
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 2: KHO CODE VIP (CODE HUB) ================= -->
+        <section id="tab-code" class="hidden space-y-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-folder-tree text-brand-400"></i> Kho Code Mẫu Chuẩn Cho ESP32/ESP8266
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Đã được tối ưu sẵn. Bạn chỉ cần sao chép, tải file `.bin` hoặc bấm <strong class="text-amber-400">"Nạp Ngay Qua Web"</strong>.
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    <select id="code-category" onchange="filterCodeProjects()" class="bg-slate-950 border border-slate-800 text-xs rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-brand-500">
+                        <option value="all">Tất cả danh mục</option>
+                        <option value="sensor">Cảm biến (DHT11/BME280/OLED)</option>
+                        <option value="control">Điều khiển (Relay/Servo/Motor)</option>
+                        <option value="wifi">Wi-Fi / Web Server / App</option>
+                        <option value="cloud">MQTT / Blynk / Home Assistant</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Code Projects Grid -->
+            <div id="code-projects-container" class="space-y-6">
+                <!-- Code cards rendered via JS -->
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 3: WEB SERIAL FLASHER ================= -->
+        <section id="tab-flasher" class="hidden space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950/30 p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold mb-2">
+                        <i class="fa-solid fa-bolt"></i> Web Serial Technology
+                    </div>
+                    <h2 class="text-2xl font-bold text-white">Công Cụ Nạp Firmware Trực Tiếp Trình Duyệt</h2>
+                    <p class="text-slate-400 text-xs mt-1">Kết nối bo mạch ESP32 / ESP32-S3 qua cáp USB Type-C và nạp trực tiếp không cần Arduino IDE.</p>
+                </div>
+                <button onclick="openGuideModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl text-xs font-medium transition flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-brand-400"></i> Hướng dẫn chọn cổng COM
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Controls Panel (4 Cols) -->
+                <div class="lg:col-span-4 space-y-6">
+                    <!-- Connection Box -->
+                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center justify-between">
+                            1. Kết Nối Thiết Bị
+                            <span id="connection-status-badge" class="normal-case text-xs px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                                Chưa kết nối
+                            </span>
+                        </h3>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Tốc độ Baud (Baudrate)</label>
+                                <select id="flasher-baud" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono">
+                                    <option value="115200" selected>115200 (Khuyên dùng)</option>
+                                    <option value="921600 font-mono">921600 (Nạp Tốc Độ Cao)</option>
+                                    <option value="460800">460800</option>
+                                    <option value="9600">9600</option>
+                                </select>
+                            </div>
+
+                            <button id="btn-connect" onclick="toggleSerialConnection()" class="w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-sm shadow-lg shadow-brand-500/20 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-plug"></i> <span id="btn-connect-text">Kết Nối Serial (Web API)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Firmware Selection -->
+                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">
+                            2. Chọn Firmware / Program
+                        </h3>
+
+                        <!-- Preset Binary Selection -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Chọn Dự Án Có Sẵn Trong Kho</label>
+                            <select id="preset-firmware-select" onchange="onPresetSelectChange()" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-brand-500">
+                                <option value="">-- Tải Firmware từ Kho Code --</option>
+                                <option value="esp32_blink">ESP32-S3: Chớp Tắt Đèn LED (Blink Test)</option>
+                                <option value="esp32_dht11_oled">ESP32-S3: Đo Nhiệt Độ DHT11 + Màn OLED</option>
+                                <option value="esp32_wifi_manager">ESP32-S3: Wi-Fi Access Point Auto Config</option>
+                            </select>
+                        </div>
+
+                        <div class="relative flex py-1 items-center">
+                            <div class="flex-grow border-t border-slate-800"></div>
+                            <span class="flex-shrink mx-2 text-[10px] text-slate-500 uppercase font-mono">hoặc file từ máy</span>
+                            <div class="flex-grow border-t border-slate-800"></div>
+                        </div>
+
+                        <!-- Local .BIN Upload -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Tải File Firmware Từ Máy (.bin)</label>
+                            <input type="file" id="firmware-file-input" accept=".bin" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer border border-slate-800 rounded-xl bg-slate-950">
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div id="flash-progress-wrapper" class="hidden space-y-1.5 pt-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-slate-400" id="flash-status-text">Đang ghi flash...</span>
+                                <span class="text-brand-400 font-bold" id="flash-percent">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                                <div id="flash-progress-bar" class="bg-gradient-to-r from-brand-500 to-tech-accent h-full w-0 transition-all duration-200"></div>
+                            </div>
+                        </div>
+
+                        <button id="btn-flash" onclick="startFlashingProcess()" disabled class="w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-bold text-sm cursor-not-allowed transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-microchip"></i> <span>Nạp Firmware Ngay</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Serial Terminal Log Panel (8 Cols) -->
+                <div class="lg:col-span-8 flex flex-col h-[520px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+                    <!-- Terminal Top Bar -->
+                    <div class="bg-slate-900 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                            <span class="text-xs font-mono text-slate-400 ml-2">Serial Terminal Monitor (COM Output)</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="clearTerminalLog()" class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg border border-slate-700 transition">
+                                <i class="fa-solid fa-trash mr-1"></i>Xóa log
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Output Window -->
+                    <div id="terminal-output" class="flex-grow p-4 font-mono text-xs text-emerald-400 overflow-y-auto space-y-1 bg-slate-950 selection:bg-brand-500 selection:text-slate-950">
+                        <div class="text-slate-500">[Hệ thống] Sẵn sàng kết nối thiết bị qua Web Serial API...</div>
+                        <div class="text-slate-500">[Hướng dẫn] Cắm ESP32-S3 -> Chọn Baudrate -> Nhấn "Kết Nối Serial".</div>
+                    </div>
+
+                    <!-- Terminal Command Input Bar -->
+                    <div class="p-3 bg-slate-900 border-t border-slate-800 flex gap-2">
+                        <input type="text" id="serial-input-msg" onkeydown="if(event.key==='Enter') sendSerialCommand()" placeholder="Nhập lệnh Serial gửi tới ESP32 (vd: AT, RESET, HELP)..." class="flex-grow bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-brand-500">
+                        <button onclick="sendSerialCommand()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition">
+                            Gửi <i class="fa-solid fa-paper-plane ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SHOPPING CART DRAWER MODAL -->
+    <div id="cart-drawer" class="fixed inset-0 z-50 overflow-hidden hidden">
+        <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity" onclick="toggleCartDrawer()"></div>
+        <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div class="w-screen max-w-md bg-slate-900 border-l border-slate-800 text-slate-100 flex flex-col justify-between shadow-2xl">
+                <!-- Cart Header -->
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-cart-shopping text-brand-400"></i> Giỏ Hàng Linh Kiện
+                    </h2>
+                    <button onclick="toggleCartDrawer()" class="text-slate-400 hover:text-white p-1">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Cart Items List -->
+                <div id="cart-items-container" class="p-5 flex-grow overflow-y-auto space-y-4">
+                    <!-- Dynamic cart items JS -->
+                </div>
+
+                <!-- Cart Footer & Checkout -->
+                <div class="p-5 border-t border-slate-800 bg-slate-950 space-y-4">
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Đặc quyền kèm theo:</span>
+                            <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-key mr-1"></i>Mã Kho Code VIP</span>
+                        </div>
+                        <div class="flex justify-between text-base font-bold text-white pt-2 border-t border-slate-800">
+                            <span>Tổng tiền toán:</span>
+                            <span id="cart-total-price" class="text-brand-400">0đ</span>
+                        </div>
+                    </div>
+
+                    <button onclick="openCheckoutModal()" class="w-full py-3 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-slate-950 font-bold rounded-xl text-sm shadow-lg shadow-brand-500/20 transition">
+                        Tiến Hành Đặt Hàng <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHECKOUT MODAL -->
+    <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-lg font-bold text-white">Xác Nhận Đơn Hàng IoT</h3>
+                <button onclick="closeCheckoutModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <form onsubmit="handleCheckoutSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Họ & Tên người nhận *</label>
+                    <input type="text" required placeholder="Nguyễn Văn A" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Số điện thoại *</label>
+                        <input type="tel" required placeholder="0912345678" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Email nhận mã VIP *</label>
+                        <input type="email" required placeholder="maker@gmail.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Địa chỉ nhận hàng chi tiết *</label>
+                    <textarea required rows="2" placeholder="Số nhà, đường, phường/xã, quận/huyện..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Phương thức thanh toán</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center space-x-2 border border-slate-800 p-2.5 rounded-xl cursor-pointer bg-slate-950">
+                            <input type="radio" name="pay" checked class="text-brand-500">
+                            <span class="text-xs text-slate-300">COD (Thanh toán khi nhận)</span>
+                        </label>
+                        <label class="flex items-center space-x-2 border border-slate-800 p-2.5 rounded-xl cursor-pointer bg-slate-950">
+                            <input type="radio" name="pay" class="text-brand-500">
+                            <span class="text-xs text-slate-300">Chuyển khoản QR</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-3 bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-sm rounded-xl transition">
+                        Xác Nhận Đặt Hàng
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DRIVER & SETUP GUIDE MODAL -->
+    <div id="guide-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question text-brand-400"></i> Hướng Dẫn Nạp Web Serial Qua Trình Duyệt
+                </h3>
+                <button onclick="closeGuideModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-brand-400 mb-1">Bước 1: Sử dụng trình duyệt hỗ trợ</h4>
+                    <p>Web Serial API yêu cầu các trình duyệt nền tảng Chromium như <strong>Google Chrome, Microsoft Edge, Brave, Opera</strong> trên máy tính PC/Laptop.</p>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-brand-400 mb-1">Bước 2: Chuẩn bị Cáp USB Type-C & Driver</h4>
+                    <p>Đảm bảo dây cáp Type-C của bạn có <strong>truyền dữ liệu (Data cable)</strong> chứ không chỉ sạc. Nếu máy tính chưa nhận cổng COM, hãy tải Driver chíp nạp tương ứng:</p>
+                    <ul class="list-disc pl-4 mt-1 space-y-1 text-slate-400">
+                        <li><strong>CH340 Driver:</strong> Phổ biến trên các mạch ESP32/ESP8266 giá rẻ.</li>
+                        <li><strong>CP2102 / CP2104 Driver:</strong> Thường dùng cho bo mạch ESP32 DevKit cao cấp.</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-brand-400 mb-1">Bước 3: Thao tác vào chế độ Bootloader (Nếu bị lỗi kết nối)</h4>
+                    <p>Khi bấm "Nạp Firmware", nếu màn hình báo timeout: Hãy nhấn giữ nút <strong>BOOT</strong> trên mạch ESP32 -> Bấm thả nút <strong>EN/RST</strong> -> Thả nút BOOT ra để mạch vào chế độ tải Code.</p>
+                </div>
+            </div>
+
+            <button onclick="closeGuideModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition">
+                Đã Hiểu
+            </button>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 border-t border-slate-800 py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <div class="flex items-center justify-center md:justify-start space-x-2">
+                    <i class="fa-solid fa-microchip text-brand-400"></i>
+                    <span class="font-bold text-white">ESP-Lab IoT Vietnam</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Chuyên bo mạch ESP32, ESP8266, Cảm biến & Giải pháp Nạp Firmware trên Web.</p>
+            </div>
+            <div class="text-xs text-slate-400 space-x-4">
+                <span><i class="fa-solid fa-shield-halved text-brand-400 mr-1"></i> Bảo hành 1 đổi 1 trong 30 ngày</span>
+                <span><i class="fa-solid fa-truck-fast text-brand-400 mr-1"></i> Ship COD Toàn Quốc</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /* ================= DATABASE / DATA STRUCTURES ================= */
+        const PRODUCTS = [
+            {
+                id: 'esp32s3-devkit',
+                name: 'Bo Mạch ESP32-S3 N16R8 Dual Type-C (VIP)',
+                category: 'esp',
+                price: 169000,
+                oldPrice: 195000,
+                chip: 'ESP32-S3-WROOM-1',
+                image: 'https://placehold.co/400x300/1e293b/38bdf8?text=ESP32-S3+N16R8',
+                badge: 'Bán Chạy Nhất',
+                pinout: '16MB Flash, 8MB PSRAM, Wi-Fi 2.4GHz + Bluetooth 5.0 LE, 45 GPIOs.',
+                desc: 'Mạch chuẩn R&D, nạp code trực tiếp bằng Web Serial không lỗi driver. Kèm mã kích hoạt VIP Kho Code.'
+            },
+            {
+                id: 'esp32-devkit-v1',
+                name: 'Bo Mạch ESP32 38 Chân CP2102',
+                category: 'esp',
+                price: 95000,
+                oldPrice: 120000,
+                chip: 'ESP-WROOM-32',
+                image: 'https://placehold.co/400x300/1e293b/14b8a6?text=ESP32+DevKit+V1',
+                badge: 'Khuyên Dùng',
+                pinout: '4MB Flash, Wi-Fi/BT4.2, Cổng MicroUSB/Type-C, chip nạp CP2102.',
+                desc: 'Phù hợp sinh viên làm đồ án IoT, kết nối Blynk, MQTT, Home Assistant mượt mà.'
+            },
+            {
+                id: 'kit-smart-home',
+                name: 'Combo Kit IoT Nhà Thông Minh (ESP32-S3 + 5 Cảm Biến)',
+                category: 'kit',
+                price: 285000,
+                oldPrice: 340000,
+                chip: 'ESP32-S3 Kit',
+                image: 'https://placehold.co/400x300/1e293b/22c55e?text=Combo+Kit+SmartHome',
+                badge: 'Tiết Kiệm 20%',
+                pinout: 'Gồm: ESP32-S3 + DHT11 + Màn OLED 0.96 inch + Module Relay 2 Kênh + Cáp Type-C + Dây cắm.',
+                desc: 'Bộ Kit thực hành trọn gói kèm sơ đồ lắp ráp & Code mẫu nạp 1 click trên web.'
+            },
+            {
+                id: 'sensor-dht11',
+                name: 'Module Cảm Biến Nhiệt Độ Độ Ẩm DHT11',
+                category: 'sensor',
+                price: 25000,
+                oldPrice: 35000,
+                chip: 'DHT11 Sensor',
+                image: 'https://placehold.co/400x300/1e293b/f59e0b?text=DHT11+Sensor',
+                badge: 'Linh Kiện',
+                pinout: 'Điện áp 3.3V-5V, Đo nhiệt độ 0-50°C (±2°C), Độ ẩm 20-90%.',
+                desc: 'Có sẵn điện trở kéo sẵn trên bo, dải chân giao tiếp chuẩn cắm ESP32.'
+            },
+            {
+                id: 'display-oled-096',
+                name: 'Màn Hình OLED 0.96 Inch I2C (Xanh Dương)',
+                category: 'sensor',
+                price: 55000,
+                oldPrice: 70000,
+                chip: 'SSD1306',
+                image: 'https://placehold.co/400x300/1e293b/38bdf8?text=OLED+0.96+I2C',
+                badge: 'Linh Kiện',
+                pinout: 'Độ phân giải 128x64, Giao tiếp I2C (SCL/SDA), nguồn 3.3V.',
+                desc: 'Hiển thị dữ liệu cảm biến, biểu tượng icon đẹp mắt cho dự án IoT.'
+            },
+            {
+                id: 'module-relay-2ch',
+                name: 'Module Relay 2 Kênh Cách Ly Opto 5V/3.3V',
+                category: 'sensor',
+                price: 28000,
+                oldPrice: 38000,
+                chip: 'Relay 5V',
+                image: 'https://placehold.co/400x300/1e293b/ef4444?text=Module+Relay+2CH',
+                badge: 'Linh Kiện',
+                pinout: 'Chịu tải 250VAC/10A, kích mức Thấp (Low Level Trigger).',
+                desc: 'Dùng để điều khiển bật tắt bóng đèn, quạt, máy bơm nước qua ESP32.'
+            }
+        ];
+
+        const CODE_PROJECTS = [
+            {
+                id: 'proj-dht11-oled',
+                title: 'Đo Nhiệt Độ, Độ Ẩm Hiển Thị Lên Màn OLED 0.96"',
+                category: 'sensor',
+                board: 'ESP32-S3',
+                wiring: 'DHT11 (Data -> GPIO 4) | OLED SSD1306 (SDA -> GPIO 8, SCL -> GPIO 9)',
+                presetBin: 'esp32_dht11_oled',
+                code: `// ESP32-S3 + DHT11 + OLED SSD1306 (I2C)
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <DHT.h>
+
+#define DHTPIN 4
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(8, 9); // SDA=8, SCL=9 cho ESP32-S3
+  dht.begin();
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+}
+
+void loop() {
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+  
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("ESP-LAB IOT MONITOR");
+  display.setTextSize(2);
+  display.setCursor(0, 20);
+  display.printf("Temp: %.1fC\n", temp);
+  display.printf("Hum:  %.1f%%", hum);
+  display.display();
+  delay(2000);
+}`
+            },
+            {
+                id: 'proj-wifi-manager',
+                title: 'Tự Động Phát Wi-Fi Cấu Hình (Wi-Fi Manager AutoConnect)',
+                category: 'wifi',
+                board: 'ESP32 / ESP32-S3',
+                wiring: 'Không cần cảm biến ngoài (Sử dụng đèn LED có sẵn GPIO 2 / GPIO 48)',
+                presetBin: 'esp32_wifi_manager',
+                code: `// Tự động phát AP "ESP32-Setup" khi chưa kết nối Wi-Fi
+#include <WiFi.h>
+#include <WebServer.h>
+
+WebServer server(80);
+
+void handleRoot() {
+  String html = "<h1>ESP32 Web Config</h1><form action='/save' method='POST'>";
+  html += "SSID: <input type='text' name='s'><br>";
+  html += "PASS: <input type='password' name='p'><br>";
+  html += "<input type='submit' value='Ket noi'></form>";
+  server.send(200, "text/html", html);
+}
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.softAP("ESP32-Setup-LAB", "12345678");
+  Serial.println("AP IP address: ");
+  Serial.println(WiFi.softAPIP());
+  
+  server.on("/", handleRoot);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+}`
+            },
+            {
+                id: 'proj-relay-mqtt',
+                title: 'Điều Khiển Relay Qua Cloud MQTT (Blynk / Home Assistant)',
+                category: 'cloud',
+                board: 'ESP32-S3',
+                wiring: 'Relay IN1 -> GPIO 5 | Relay IN2 -> GPIO 6 | Nguồn 5V/GND',
+                presetBin: 'esp32_blink',
+                code: `// Ket noi MQTT Broker dieu khien Relay
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASS";
+const char* mqtt_server = "broker.hivemq.com";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (int i = 0; i < length; i++) message += (char)payload[i];
+  if(message == "ON") digitalWrite(5, HIGH);
+  else digitalWrite(5, LOW);
+}
+
+void setup() {
+  pinMode(5, OUTPUT);
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    if (client.connect("ESP32Client_Lab")) {
+      client.subscribe("esp32/relay1");
+    }
+  }
+  client.loop();
+}`
+            }
+        ];
+
+        /* ================= STATE MANAGEMENT ================= */
+        let cart = [];
+        let serialPort = null;
+        let serialWriter = null;
+        let serialReader = null;
+        let isConnected = false;
+
+        /* ================= INITIALIZATION ================= */
+        window.addEventListener('DOMContentLoaded', () => {
+            renderProducts(PRODUCTS);
+            renderCodeProjects(CODE_PROJECTS);
+            updateCartUI();
+        });
+
+        /* ================= TAB NAVIGATION ================= */
+        function switchTab(tabId) {
+            ['store', 'code', 'flasher'].forEach(id => {
+                const tabEl = document.getElementById(`tab-${id}`);
+                const navEl = document.getElementById(`nav-${id}`);
+                if (id === tabId) {
+                    tabEl.classList.remove('hidden');
+                    if (navEl) {
+                        navEl.classList.add('text-brand-400', 'bg-slate-800/80', 'shadow');
+                        navEl.classList.remove('text-slate-400');
+                    }
+                } else {
+                    tabEl.classList.add('hidden');
+                    if (navEl) {
+                        navEl.classList.remove('text-brand-400', 'bg-slate-800/80', 'shadow');
+                        navEl.classList.add('text-slate-400');
+                    }
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        /* ================= STORE / PRODUCTS LOGIC ================= */
+        function renderProducts(items) {
+            const grid = document.getElementById('products-grid');
+            grid.innerHTML = items.map(p => `
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition duration-300 flex flex-col justify-between group">
+                    <div>
+                        <!-- Product Image -->
+                        <div class="relative overflow-hidden bg-slate-950 aspect-[4/3]">
+                            <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 bg-brand-500/90 text-slate-950 font-bold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-lg backdrop-blur-sm">
+                                ${p.badge}
+                            </span>
+                        </div>
+                        
+                        <!-- Content -->
+                        <div class="p-5 space-y-3">
+                            <div class="text-[10px] font-mono text-brand-400 uppercase tracking-wide">${p.chip}</div>
+                            <h3 class="font-bold text-slate-100 text-sm leading-snug line-clamp-2 hover:text-brand-400 transition cursor-pointer">
+                                ${p.name}
+                            </h3>
+                            <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                                ${p.desc}
+                            </p>
+                            
+                            <!-- Technical Specs Pinout snippet -->
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-[11px] font-mono text-slate-400">
+                                <i class="fa-solid fa-microchip text-brand-400 mr-1"></i> ${p.pinout}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Price & Buy Button -->
+                    <div class="p-5 pt-0 flex items-center justify-between mt-2">
+                        <div>
+                            <div class="text-lg font-bold text-brand-400 font-mono">${formatMoney(p.price)}</div>
+                            <div class="text-xs text-slate-500 line-through font-mono">${formatMoney(p.oldPrice)}</div>
+                        </div>
+                        <button onclick="addToCart('${p.id}')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-brand-500 hover:text-slate-950 text-brand-400 text-xs font-semibold border border-slate-700 hover:border-brand-500 transition duration-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-cart-plus"></i> Thêm
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterProducts(cat) {
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-500', 'text-slate-950');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+            });
+            event.target.classList.add('bg-brand-500', 'text-slate-950');
+            event.target.classList.remove('bg-slate-800', 'text-slate-300');
+
+            if (cat === 'all') {
+                renderProducts(PRODUCTS);
+            } else {
+                renderProducts(PRODUCTS.filter(p => p.category === cat));
+            }
+        }
+
+        function searchProducts() {
+            const query = document.getElementById('store-search').value.toLowerCase();
+            const filtered = PRODUCTS.filter(p => p.name.toLowerCase().includes(query) || p.desc.toLowerCase().includes(query));
+            renderProducts(filtered);
+        }
+
+        /* ================= CODE HUB LOGIC ================= */
+        function renderCodeProjects(projects) {
+            const container = document.getElementById('code-projects-container');
+            container.innerHTML = projects.map(pj => `
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <div class="flex flex-col md:flex-row justify-between md:items-center gap-2">
+                        <div>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 uppercase">
+                                Bo Mạch: ${pj.board}
+                            </span>
+                            <h3 class="text-lg font-bold text-white mt-1">${pj.title}</h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="copyCode('${pj.id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded-lg border border-slate-700 transition">
+                                <i class="fa-solid fa-copy mr-1"></i> Sao chép
+                            </button>
+                            <button onclick="directFlashProject('${pj.presetBin}')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-bolt"></i> Nạp Ngay Qua Web
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Wiring diagram pinout info -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 text-xs text-slate-300 font-mono flex items-center gap-2">
+                        <i class="fa-solid fa-diagram-project text-tech-accent"></i>
+                        <span><strong>Sơ đồ chân:</strong> ${pj.wiring}</span>
+                    </div>
+
+                    <!-- Code block -->
+                    <div class="relative bg-slate-950 rounded-xl border border-slate-800 p-4 font-mono text-xs overflow-x-auto text-slate-300">
+                        <pre id="code-text-${pj.id}"><code>${escapeHtml(pj.code)}</code></pre>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterCodeProjects() {
+            const cat = document.getElementById('code-category').value;
+            if (cat === 'all') {
+                renderCodeProjects(CODE_PROJECTS);
+            } else {
+                renderCodeProjects(CODE_PROJECTS.filter(p => p.category === cat));
+            }
+        }
+
+        function copyCode(projId) {
+            const proj = CODE_PROJECTS.find(p => p.id === projId);
+            if (proj) {
+                navigator.clipboard.writeText(proj.code);
+                logTerminal(`[Code Hub] Đã sao chép mã nguồn project "${proj.title}" vào Clipboard!`);
+                alert('Đã sao chép code vào bộ nhớ tạm!');
+            }
+        }
+
+        function directFlashProject(presetKey) {
+            switchTab('flasher');
+            const select = document.getElementById('preset-firmware-select');
+            select.value = presetKey;
+            onPresetSelectChange();
+            logTerminal(`[Hệ thống] Đã chọn dự án nạp nhanh. Hãy kết nối cổng Serial và bấm "Nạp Firmware Ngay".`);
+        }
+
+        /* ================= WEB SERIAL FLASHER ENGINE ================= */
+        async function toggleSerialConnection() {
+            if (isConnected) {
+                await disconnectSerial();
+            } else {
+                await connectSerial();
+            }
+        }
+
+        async function connectSerial() {
+            const baud = parseInt(document.getElementById('flasher-baud').value);
+            
+            if (!("serial" in navigator)) {
+                logTerminal('[Lỗi API] Trình duyệt của bạn không hỗ trợ Web Serial API! Vui lòng dùng Chrome, Edge hoặc Brave trên PC.');
+                alert('Trình duyệt không hỗ trợ Web Serial API. Hãy dùng Google Chrome hoặc Microsoft Edge trên máy tính.');
+                return;
+            }
+
+            try {
+                logTerminal('[Serial] Đang mở cửa sổ chọn cổng COM...');
+                serialPort = await navigator.serial.requestPort();
+                
+                logTerminal(`[Serial] Đang kết nối tới cổng với tốc độ Baud: ${baud}...`);
+                await serialPort.open({ baudRate: baud });
+
+                isConnected = true;
+                updateSerialUI(true);
+                logTerminal('[Serial OK] Đã kết nối thành công thiết bị ESP32!');
+                
+                readSerialLoop();
+            } catch (err) {
+                logTerminal(`[Lỗi Kết Nối] ${err.message || err}`);
+            }
+        }
+
+        async function disconnectSerial() {
+            try {
+                if (serialReader) {
+                    await serialReader.cancel();
+                }
+                if (serialPort) {
+                    await serialPort.close();
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                isConnected = false;
+                updateSerialUI(false);
+                logTerminal('[Serial] Đã ngắt kết nối cổng COM.');
+            }
+        }
+
+        function updateSerialUI(connected) {
+            const badge = document.getElementById('connection-status-badge');
+            const btnText = document.getElementById('btn-connect-text');
+            const btnConnect = document.getElementById('btn-connect');
+            const btnFlash = document.getElementById('btn-flash');
+
+            if (connected) {
+                badge.className = "normal-case text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                badge.innerHTML = '<i class="fa-solid fa-circle text-[8px] mr-1"></i>Đã kết nối';
+                btnText.textContent = "Ngắt Kết Nối Serial";
+                btnConnect.className = "w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg transition flex items-center justify-center gap-2";
+                
+                btnFlash.disabled = false;
+                btnFlash.className = "w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 cursor-pointer transition flex items-center justify-center gap-2";
+            } else {
+                badge.className = "normal-case text-xs px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                badge.innerHTML = 'Chưa kết nối';
+                btnText.textContent = "Kết Nối Serial (Web API)";
+                btnConnect.className = "w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-sm shadow-lg shadow-brand-500/20 transition flex items-center justify-center gap-2";
+                
+                btnFlash.disabled = true;
+                btnFlash.className = "w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-bold text-sm cursor-not-allowed transition flex items-center justify-center gap-2";
+            }
+        }
+
+        async function readSerialLoop() {
+            while (serialPort && serialPort.readable && isConnected) {
+                try {
+                    const textDecoder = new TextDecoderStream();
+                    const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+                    serialReader = textDecoder.readable.getReader();
+
+                    while (true) {
+                        const { value, done } = await serialReader.read();
+                        if (done) break;
+                        if (value) {
+                            logTerminal(value, false);
+                        }
+                    }
+                } catch (error) {
+                    logTerminal(`[Lỗi Đọc Serial] ${error}`);
+                    break;
+                }
+            }
+        }
+
+        async function sendSerialCommand() {
+            const input = document.getElementById('serial-input-msg');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            if (!isConnected || !serialPort) {
+                alert('Vui lòng bấm kết nối Serial trước!');
+                return;
+            }
+
+            try {
+                const encoder = new TextEncoder();
+                const writer = serialPort.writable.getWriter();
+                await writer.write(encoder.encode(cmd + "\r\n"));
+                writer.releaseLock();
+                logTerminal(`> ${cmd}`);
+                input.value = '';
+            } catch (err) {
+                logTerminal(`[Lỗi Gửi Command] ${err.message}`);
+            }
+        }
+
+        /* Simulated Flashing Process */
+        function onPresetSelectChange() {
+            const val = document.getElementById('preset-firmware-select').value;
+            if (val) {
+                logTerminal(`[Firmware] Đã chọn file binary mẫu: ${val}.bin`);
+            }
+        }
+
+        function startFlashingProcess() {
+            const presetVal = document.getElementById('preset-firmware-select').value;
+            const fileInput = document.getElementById('firmware-file-input');
+
+            if (!presetVal && fileInput.files.length === 0) {
+                alert('Vui lòng chọn một dự án trong danh sách hoặc tải file .bin từ máy!');
+                return;
+            }
+
+            const wrapper = document.getElementById('flash-progress-wrapper');
+            const pBar = document.getElementById('flash-progress-bar');
+            const pPercent = document.getElementById('flash-percent');
+            const pStatus = document.getElementById('flash-status-text');
+
+            wrapper.classList.remove('hidden');
+            logTerminal('================================================');
+            logTerminal('[ESP Flasher] Bắt đầu khởi tạo quy trình nạp Flash...');
+            logTerminal('[ESP Flasher] Đồng bộ Stub Bootloader ESP32-S3...');
+
+            let progress = 0;
+            pBar.style.width = '0%';
+            pPercent.textContent = '0%';
+            pStatus.textContent = 'Đang kích hoạt Bootloader...';
+
+            const interval = setInterval(() => {
+                progress += Math.floor(Math.random() * 8) + 5;
+                if (progress > 100) progress = 100;
+
+                pBar.style.width = `${progress}%`;
+                pPercent.textContent = `${progress}%`;
+
+                if (progress < 30) {
+                    pStatus.textContent = 'Erase flash memory sector...';
+                } else if (progress < 80) {
+                    pStatus.textContent = `Writing binaries to address 0x10000 (${progress}%)...`;
+                } else {
+                    pStatus.textContent = 'Verifying hash integrity...';
+                }
+
+                logTerminal(`[ESP Flasher] Writing flash offset 0x${(progress * 1024).toString(16)}... ${progress}%`);
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    pStatus.textContent = 'Nạp hoàn tất! Đang Reset ESP32...';
+                    logTerminal('[ESP Flasher OK] Ghi dữ liệu thành công 100%! Đang tự động Hard Reset mạch...');
+                    logTerminal('[ESP32 Boot] Reconnecting serial monitor at 115200 baud...');
+                    logTerminal('--- Device Output Below ---');
+                    logTerminal('ESP-ROM:esp32s3-20210327');
+                    logTerminal('Build:Mar 27 2021');
+                    logTerminal('rst:0x1 (POWERON),boot:0x8 (SPI_FAST_FLASH_BOOT)');
+                    logTerminal('ESP-Lab Firmware Started Successfully!');
+                    logTerminal('================================================');
+                }
+            }, 300);
+        }
+
+        function logTerminal(msg, addNewline = true) {
+            const term = document.getElementById('terminal-output');
+            const div = document.createElement('div');
+            div.textContent = msg;
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function clearTerminalLog() {
+            document.getElementById('terminal-output').innerHTML = '';
+        }
+
+        /* ================= CART & CHECKOUT LOGIC ================= */
+        function addToCart(productId) {
+            const product = PRODUCTS.find(p => p.id === productId);
+            if (!product) return;
+
+            const existing = cart.find(item => item.id === productId);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+
+            updateCartUI();
+            toggleCartDrawer(true);
+        }
+
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            updateCartUI();
+        }
+
+        function updateCartQty(productId, delta) {
+            const item = cart.find(i => i.id === productId);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) {
+                    removeFromCart(productId);
+                } else {
+                    updateCartUI();
+                }
+            }
+        }
+
+        function updateCartUI() {
+            const badge = document.getElementById('cart-badge');
+            const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+            
+            if (totalQty > 0) {
+                badge.textContent = totalQty;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            const container = document.getElementById('cart-items-container');
+            if (cart.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-500 space-y-2">
+                        <i class="fa-solid fa-cart-flatbed text-4xl"></i>
+                        <p class="text-sm">Giỏ hàng của bạn đang trống.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = cart.map(item => `
+                    <div class="flex items-center justify-between gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <div class="flex items-center space-x-3">
+                            <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded-lg border border-slate-800">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-200 line-clamp-1">${item.name}</h4>
+                                <div class="text-xs text-brand-400 font-mono mt-0.5">${formatMoney(item.price)}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="updateCartQty('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">-</button>
+                            <span class="text-xs font-mono w-4 text-center">${item.qty}</span>
+                            <button onclick="updateCartQty('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">+</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            document.getElementById('cart-total-price').textContent = formatMoney(totalPrice);
+        }
+
+        function toggleCartDrawer(forceOpen = false) {
+            const drawer = document.getElementById('cart-drawer');
+            if (forceOpen) {
+                drawer.classList.remove('hidden');
+            } else {
+                drawer.classList.toggle('hidden');
+            }
+        }
+
+        function openCheckoutModal() {
+            if (cart.length === 0) {
+                alert('Giỏ hàng chưa có sản phẩm!');
+                return;
+            }
+            toggleCartDrawer();
+            document.getElementById('checkout-modal').classList.remove('hidden');
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById('checkout-modal').classList.add('hidden');
+        }
+
+        function handleCheckoutSubmit(e) {
+            e.preventDefault();
+            alert('Đặt hàng thành công! Mã Kích Hoạt Kho Code VIP đã được gửi tới email của bạn.');
+            cart = [];
+            updateCartUI();
+            closeCheckoutModal();
+        }
+
+        /* Modal Guide */
+        function openGuideModal() {
+            document.getElementById('guide-modal').classList.remove('hidden');
+        }
+        function closeGuideModal() {
+            document.getElementById('guide-modal').classList.add('hidden');
+        }
+
+        /* Helpers */
+        function formatMoney(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+</html>
